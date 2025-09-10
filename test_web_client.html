@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatterbox TTS WebSocket Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .audio-controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .config-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .config-section h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .config-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        .config-row > div {
+            flex: 1;
+        }
+        .config-row input {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Chatterbox TTS WebSocket Test Client</h1>
+        
+        <div class="form-group">
+            <label for="serverUrl">WebSocket Server URL:</label>
+            <input type="text" id="serverUrl" value="ws://localhost:8000" placeholder="ws://localhost:8000">
+        </div>
+        
+        <div class="form-group">
+            <label for="textInput">Text to synthesize:</label>
+            <textarea id="textInput" placeholder="Enter text to convert to speech...">Hola, este es un test del sistema de síntesis de voz Chatterbox en español.</textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="languageSelect">Language:</label>
+            <select id="languageSelect">
+                <option value="es">Spanish (es)</option>
+                <option value="en">English (en)</option>
+                <option value="fr">French (fr)</option>
+                <option value="de">German (de)</option>
+                <option value="it">Italian (it)</option>
+                <option value="pt">Portuguese (pt)</option>
+                <option value="ru">Russian (ru)</option>
+                <option value="ja">Japanese (ja)</option>
+                <option value="ko">Korean (ko)</option>
+                <option value="zh">Chinese (zh)</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="referenceAudio">Reference Audio (optional):</label>
+            <input type="file" id="referenceAudio" accept="audio/*">
+            <small>Upload a reference audio file to clone the voice</small>
+        </div>
+        
+        <div class="config-section">
+            <h3>Advanced Configuration</h3>
+            <div class="config-row">
+                <div>
+                    <label for="exaggeration">Exaggeration (0.25-2.0):</label>
+                    <input type="number" id="exaggeration" value="0.5" min="0.25" max="2.0" step="0.05">
+                </div>
+                <div>
+                    <label for="temperature">Temperature (0.05-5.0):</label>
+                    <input type="number" id="temperature" value="0.8" min="0.05" max="5.0" step="0.05">
+                </div>
+            </div>
+            <div class="config-row">
+                <div>
+                    <label for="cfgWeight">CFG Weight (0.0-1.0):</label>
+                    <input type="number" id="cfgWeight" value="0.5" min="0.0" max="1.0" step="0.05">
+                </div>
+                <div>
+                    <label for="repetitionPenalty">Repetition Penalty (1.0-3.0):</label>
+                    <input type="number" id="repetitionPenalty" value="2.0" min="1.0" max="3.0" step="0.1">
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button id="connectBtn" onclick="connect()">Connect</button>
+            <button id="generateBtn" onclick="generateTTS()" disabled>Generate TTS</button>
+            <button id="pingBtn" onclick="ping()" disabled>Ping Server</button>
+        </div>
+        
+        <div id="status"></div>
+        
+        <div class="audio-controls" id="audioControls" style="display: none;">
+            <h3>Generated Audio:</h3>
+            <audio id="audioPlayer" controls></audio>
+            <br>
+            <button onclick="downloadAudio()">Download Audio</button>
+        </div>
+    </div>
+
+    <script>
+        let websocket = null;
+        let currentAudioBlob = null;
+        
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+        }
+        
+        function connect() {
+            const url = document.getElementById('serverUrl').value;
+            
+            try {
+                websocket = new WebSocket(url);
+                
+                websocket.onopen = function(event) {
+                    showStatus('Connected to server!', 'success');
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('generateBtn').disabled = false;
+                    document.getElementById('pingBtn').disabled = false;
+                };
+                
+                websocket.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                };
+                
+                websocket.onclose = function(event) {
+                    showStatus('Connection closed', 'error');
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('generateBtn').disabled = true;
+                    document.getElementById('pingBtn').disabled = true;
+                };
+                
+                websocket.onerror = function(error) {
+                    showStatus('Connection error: ' + error, 'error');
+                };
+                
+            } catch (error) {
+                showStatus('Failed to connect: ' + error.message, 'error');
+            }
+        }
+        
+        function handleServerMessage(data) {
+            switch (data.type) {
+                case 'server_info':
+                    showStatus(`Server info: ${data.data.message} | Device: ${data.data.device} | Languages: ${data.data.supported_languages.join(', ')}`, 'info');
+                    break;
+                    
+                case 'tts_response':
+                    if (data.data.status === 'success') {
+                        showStatus('TTS generation successful!', 'success');
+                        playAudio(data.data.audio);
+                    } else {
+                        showStatus('TTS generation failed: ' + data.data.message, 'error');
+                    }
+                    break;
+                    
+                case 'pong':
+                    showStatus('Pong received - server is alive!', 'success');
+                    break;
+                    
+                case 'error':
+                    showStatus('Server error: ' + data.data.message, 'error');
+                    break;
+                    
+                default:
+                    showStatus('Unknown message type: ' + data.type, 'error');
+            }
+        }
+        
+        function generateTTS() {
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                showStatus('Not connected to server', 'error');
+                return;
+            }
+            
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                showStatus('Please enter text to synthesize', 'error');
+                return;
+            }
+            
+            const language = document.getElementById('languageSelect').value;
+            const referenceFile = document.getElementById('referenceAudio').files[0];
+            
+            const config = {
+                language_id: language,
+                exaggeration: parseFloat(document.getElementById('exaggeration').value),
+                temperature: parseFloat(document.getElementById('temperature').value),
+                cfg_weight: parseFloat(document.getElementById('cfgWeight').value),
+                repetition_penalty: parseFloat(document.getElementById('repetitionPenalty').value)
+            };
+            
+            const request = {
+                type: 'tts_request',
+                data: {
+                    text: text,
+                    config: config
+                }
+            };
+            
+            if (referenceFile) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64 = e.target.result.split(',')[1];
+                    request.data.reference_audio = base64;
+                    websocket.send(JSON.stringify(request));
+                    showStatus('Generating TTS with reference audio...', 'info');
+                };
+                reader.readAsDataURL(referenceFile);
+            } else {
+                websocket.send(JSON.stringify(request));
+                showStatus('Generating TTS...', 'info');
+            }
+        }
+        
+        function ping() {
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                showStatus('Not connected to server', 'error');
+                return;
+            }
+            
+            const request = {
+                type: 'ping',
+                data: {}
+            };
+            
+            websocket.send(JSON.stringify(request));
+            showStatus('Ping sent...', 'info');
+        }
+        
+        function playAudio(base64Audio) {
+            try {
+                const audioData = atob(base64Audio);
+                const audioArray = new Uint8Array(audioData.length);
+                for (let i = 0; i < audioData.length; i++) {
+                    audioArray[i] = audioData.charCodeAt(i);
+                }
+                
+                currentAudioBlob = new Blob([audioArray], { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(currentAudioBlob);
+                
+                const audioPlayer = document.getElementById('audioPlayer');
+                audioPlayer.src = audioUrl;
+                document.getElementById('audioControls').style.display = 'block';
+                
+            } catch (error) {
+                showStatus('Error playing audio: ' + error.message, 'error');
+            }
+        }
+        
+        function downloadAudio() {
+            if (currentAudioBlob) {
+                const url = URL.createObjectURL(currentAudioBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'chatterbox_output.wav';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+        
+        // Auto-connect on page load
+        window.onload = function() {
+            showStatus('Ready to connect. Click Connect to start.', 'info');
+        };
+    </script>
+</body>
+</html>

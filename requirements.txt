@@ -1,0 +1,25 @@
+# Core dependencies - let uv decide best versions
+numpy
+librosa
+s3tokenizer
+torch
+torchaudio
+transformers
+diffusers
+resemble-perth
+conformer
+safetensors
+pykakasi
+gradio
+
+# WebSocket API dependencies
+websockets
+uvicorn
+fastapi
+pydantic
+python-multipart
+aiofiles
+
+# Build tools
+setuptools
+wheel
