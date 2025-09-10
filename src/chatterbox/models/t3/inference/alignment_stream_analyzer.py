@@ -82,9 +82,16 @@ class AlignmentStreamAnalyzer:
         target_layer = tfmr.layers[layer_idx].self_attn
         # Register hook and store the handle
         target_layer.register_forward_hook(attention_forward_hook)
+        
+        # Handle attention implementation compatibility
         if hasattr(tfmr, 'config') and hasattr(tfmr.config, 'output_attentions'):
             self.original_output_attentions = tfmr.config.output_attentions
+            self.original_attn_implementation = getattr(tfmr.config, 'attn_implementation', None)
+            
+            # With eager implementation, we can safely use output_attentions
+            logger.info(f"Setting output_attentions = True (attention implementation: {self.original_attn_implementation})")
             tfmr.config.output_attentions = True
+            self.attention_analysis_available = True
 
     def step(self, logits, next_token=None):
         """
@@ -176,3 +183,11 @@ class AlignmentStreamAnalyzer:
 
         self.curr_frame_pos += 1
         return logits
+    
+    def cleanup(self, tfmr):
+        """
+        Restore original attention configuration when analyzer is no longer needed.
+        """
+        if hasattr(self, 'original_output_attentions') and hasattr(tfmr, 'config'):
+            tfmr.config.output_attentions = self.original_output_attentions
+            logger.info("Restored original output_attentions configuration")

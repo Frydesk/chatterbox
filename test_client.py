@@ -58,9 +58,20 @@ class ChatterboxTestClient:
                 await websocket.send(json.dumps(request))
                 logger.info("TTS request sent")
                 
-                # Wait for response
-                response = await websocket.recv()
-                response_data = json.loads(response)
+                # Wait for responses (server sends server_info first, then tts_response)
+                tts_response_received = False
+                while not tts_response_received:
+                    response = await websocket.recv()
+                    response_data = json.loads(response)
+                    
+                    if response_data.get("type") == "tts_response":
+                        tts_response_received = True
+                    elif response_data.get("type") == "server_info":
+                        logger.info("Received server info, waiting for TTS response...")
+                        continue
+                    else:
+                        logger.warning(f"Unexpected response type: {response_data.get('type')}")
+                        continue
                 
                 if response_data.get("type") == "tts_response":
                     data = response_data.get("data", {})
@@ -112,9 +123,20 @@ class ChatterboxTestClient:
                 await websocket.send(json.dumps(request))
                 logger.info("TTS request with reference audio sent")
                 
-                # Wait for response
-                response = await websocket.recv()
-                response_data = json.loads(response)
+                # Wait for responses (server sends server_info first, then tts_response)
+                tts_response_received = False
+                while not tts_response_received:
+                    response = await websocket.recv()
+                    response_data = json.loads(response)
+                    
+                    if response_data.get("type") == "tts_response":
+                        tts_response_received = True
+                    elif response_data.get("type") == "server_info":
+                        logger.info("Received server info, waiting for TTS response...")
+                        continue
+                    else:
+                        logger.warning(f"Unexpected response type: {response_data.get('type')}")
+                        continue
                 
                 if response_data.get("type") == "tts_response":
                     data = response_data.get("data", {})

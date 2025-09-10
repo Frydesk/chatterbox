@@ -59,6 +59,7 @@ class ChatterboxWebSocketServer:
     
     def _encode_audio(self, audio_tensor: torch.Tensor, sample_rate: int) -> str:
         """Encode audio tensor to base64 string."""
+        temp_file_path = None
         try:
             # Convert tensor to numpy array
             if isinstance(audio_tensor, torch.Tensor):
@@ -68,19 +69,27 @@ class ChatterboxWebSocketServer:
             
             # Create temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
-                torchaudio.save(temp_file.name, torch.from_numpy(audio_np).unsqueeze(0), sample_rate)
-                
-                # Read the file and encode to base64
-                with open(temp_file.name, 'rb') as f:
-                    audio_data = f.read()
-                
-                # Clean up temporary file
-                os.unlink(temp_file.name)
-                
-                return base64.b64encode(audio_data).decode('utf-8')
+                temp_file_path = temp_file.name
+                torchaudio.save(temp_file_path, torch.from_numpy(audio_np).unsqueeze(0), sample_rate)
+            
+            # Read the file and encode to base64
+            with open(temp_file_path, 'rb') as f:
+                audio_data = f.read()
+            
+            return base64.b64encode(audio_data).decode('utf-8')
+            
         except Exception as e:
             logger.error(f"Failed to encode audio: {e}")
             raise
+        finally:
+            # Clean up temporary file with error handling
+            if temp_file_path and os.path.exists(temp_file_path):
+                try:
+                    os.unlink(temp_file_path)
+                except (PermissionError, OSError) as e:
+                    logger.warning(f"Could not delete temporary file {temp_file_path}: {e}")
+                    # On Windows, sometimes files are still locked, so we'll just leave them
+                    # The temp directory will be cleaned up by the OS eventually
     
     def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Validate and set default values for configuration."""

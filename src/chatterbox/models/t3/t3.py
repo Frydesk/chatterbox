@@ -391,4 +391,9 @@ class T3(nn.Module):
 
         # Concatenate all predicted tokens along the sequence dimension.
         predicted_tokens = torch.cat(predicted, dim=1)  # shape: (B, num_tokens)
+        
+        # Cleanup alignment stream analyzer if it was used
+        if hasattr(self, 'patched_model') and self.patched_model.alignment_stream_analyzer is not None:
+            self.patched_model.alignment_stream_analyzer.cleanup(self.tfmr)
+        
         return predicted_tokens
